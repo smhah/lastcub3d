@@ -19,6 +19,7 @@ int *data;
 //Field of Vu
 float fov;
 
+//
 //Mini Map
 float minimap;
 //columnId
@@ -52,6 +53,7 @@ typedef struct s_castRay{
 //castRay cast;
 typedef struct s_Rays{
 	float *rays;
+	float rayHight;
 	castRay cast;
 }Rays;
 
@@ -211,27 +213,55 @@ void    drawLine(float angle, unsigned int color, int indice)
 // 	double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
 // 	printf("ray is %f\n", time_spent);
 }
+void	rectangle(int e, int L, unsigned color)
+{
+	int i;
+	int j;
+	int c;
+	int i_end;
 
+	i = e;
+	c = 0;
+	j = HEIGHT / 2 - r.rayHight / 2;
+	i_end = i + e;
+	//printf("|%f|", r.rayHight);
+	while(i <= i_end)
+	{
+		j = HEIGHT - HEIGHT / 2 - r.rayHight / 2 + 350;
+		while(c <= r.rayHight && j >= 0)
+		{
+			//printf("0");
+			data[(int )i + (int )j * WIDTH] = color;
+			j--;
+			c++;
+		}
+		//printf("\n");
+		i++;
+	}
+}
+
+void	render3d(int i)
+{
+	float projectDistance;
+
+	projectDistance = (WIDTH / 2) / tan(fov / 2);
+	r.rayHight = (projectDistance / r.cast.distance) * 32;
+	rectangle(i, 2, 0x348af2);
+}
 
 void    drawRays(void)
 {
 	// clock_t start = clock();
-
-
-    float x;
-    float y;
-    int init_y;
-    float distance;
 	int i;
 	unsigned int color;
 
 	i = 0;
-    distance = 0;
 	while(i < Num_rays)
 	{
 		color = 0xfa2c34;
 		cast(r.rays[i]);
-		drawLine(r.rays[i], color, 1);
+		//drawLine(r.rays[i], color, 1);
+		render3d(i);
 		i+=1;
 	}
 }
@@ -252,21 +282,21 @@ void    render(int height, int width, char **lines, int indice)
 		while(x < width)
 		{
 			//printf("|%c|", lines[a][b]);
-			if(lines[a][b] == '1')
-			{
-				put_square(x, y, 1);
-			}
-			else
-			{
-				put_square(x, y, 0);
-			}
+			// if(lines[a][b] == '1')
+			// {
+			// 	put_square(x, y, 1);
+			// }
+			// else
+			// {
+			// 	put_square(x, y, 0);
+			// }
 			if(lines[a][b] == 'N' && indice == 0)
 			{
 				//printf("loool");
 				p.x = x;
 				p.y = y;
 				//mlx_pixel_put(mlx_ptr, win_ptr, p.x, p.y, 0x000000);
-				data[(int )p.x + (int )p.y * WIDTH] = 0x000000;
+				//data[(int )p.x + (int )p.y * WIDTH] = 0x000000;
 				//Line();
 				//drawLine(p.rotationAngle, 0x000000);
 				//printf("|%f|", p.rotationAngle + fov / 2);
@@ -291,7 +321,6 @@ void    render(int height, int width, char **lines, int indice)
 		//Line;
 		drawRays();
 		//drawLine(p.rotationAngle, 0x000000);
-		//drawLine();
 	}
 }
 
@@ -460,11 +489,13 @@ void	chosePoints()
 	{
 		r.cast.wallHitx = r.cast.verticalx;
 		r.cast.wallHity = r.cast.verticaly;
+		r.cast.distance = a;
 	}
 	else
 	{
 		r.cast.wallHitx = r.cast.horizontalx;
 		r.cast.wallHity = r.cast.horizontaly;
+		r.cast.distance = b;
 	}
 }
 void	cast(float rayAngle)
@@ -497,6 +528,24 @@ void    castAllRays(void)
 	}
 }
 
+void	blackscreen(void)
+{
+	int x;
+	int y;
+
+	x = 0;
+	y = 0;
+	while(x < WIDTH)
+	{
+		y = 0;
+		while(y < HEIGHT)
+		{
+			data[(int )x + (int )y * WIDTH] = 0x000000;
+			y++;
+		}
+		x++;
+	}
+}
 int update()
 {
 	static char i;
@@ -512,14 +561,16 @@ int update()
 	//e = clock();
 	//printf("time taken by castAllRays(): %lf\n", (double)(e - b) / CLOCKS_PER_SEC);
 	//if (i % 1000 == 0)
-	//	mlx_clear_window(mlx_ptr, win_ptr);
+	mlx_clear_window(mlx_ptr, win_ptr);
 	//b = clock();
+	blackscreen();
 	render(height, width, lines, 1);
 	//e = clock();
 	//printf("time taken by render(): %lf\n", (double)(e - b) / CLOCKS_PER_SEC);
-	data[HEIGHT / 2 + WIDTH / 2 * WIDTH] = 0xFFFFFF;
+	//data[HEIGHT / 2 + WIDTH / 2 * WIDTH] = 0xFFFFFF;
 	if (!i || i++ == 127)
 		mlx_put_image_to_window(mlx_ptr, win_ptr, img, 0 , 0);
+	//mlx_destroy_image(mlx_ptr, img);
 	return (0);
 }
 
@@ -548,7 +599,7 @@ int main()
 	fov = 60 * (Pi / 180);
 	//init number of rays
 	Rays_width = 1;
-	Num_rays = width / Rays_width;
+	Num_rays = WIDTH / Rays_width;
 	r.rays = malloc(sizeof(float) * Num_rays);
 	//init params of player
 	p.x = 0;
