@@ -54,6 +54,7 @@ typedef struct s_castRay{
 typedef struct s_Rays{
 	float *rays;
 	float rayHight;
+	float maxDistance;
 	castRay cast;
 }Rays;
 
@@ -213,31 +214,109 @@ void    drawLine(float angle, unsigned int color, int indice)
 // 	double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
 // 	printf("ray is %f\n", time_spent);
 }
-void	rectangle(int e, int L, unsigned color)
+
+int 	mult_colors(unsigned int color, float val)
+{	
+// 	int res;
+// 	unsigned char c[3];
+
+// val = 1;
+// 	c[2] = ((unsigned char)color) * val;
+// 	c[1] = ((unsigned char)color << 8) * val;
+//  	c[0] = ((unsigned char)color << 16) * val;
+
+// 	 res = c[2] * 256;
+// 	 res = (res + c[1]) * 256;
+// 	 res = (res + c[2]);
+// 	return (res);
+
+	unsigned char	c1[3];
+	int				result;
+
+	c1[2] = (color % 256) * val;
+	color /= 256;
+	c1[1] = (color % 256) * val;
+	color /= 256;
+	c1[0] = (color % 256) * val;
+	result = c1[0] * 256;
+	result = (result + c1[1]) * 256;
+	result = result + c1[2];
+	return (result);
+}
+
+void	rectangle(int i, int L, unsigned int color)
 {
-	int i;
 	int j;
 	int c;
 	int i_end;
+	static int save = 0;
+	int e;
+	float opacity;
 
-	i = e;
+	e = 0;
 	c = 0;
-	j = HEIGHT / 2 - r.rayHight / 2;
-	i_end = i + e;
-	//printf("|%f|", r.rayHight);
-	while(i <= i_end)
-	{
-		j = HEIGHT - HEIGHT / 2 - r.rayHight / 2 + 350;
-		while(c <= r.rayHight && j >= 0)
+	opacity = 0.95 - r.cast.distance / r.maxDistance;
+
+
+
+	//printf("|%f|", opacity);
+	// if(r.cast.distance < 50 && r.cast.distance > 32 && save == 0)
+	// {
+	// 	save = r.rayHight;
+	// }
+	// else if (r.cast.distance < 50 && r.cast.distance > 10)
+	// {
+	// 		r.rayHight = save;
+	// }
+		//printf("|%f|\n", r.cast.distance);
+	// while(i < 1)
+	// {
+		j = HEIGHT / 2 - r.rayHight / 2;
+		if (j <= 0)
+			j = 0;
+		while(e < j)
+		{
+			data[(int )i + (int )e * WIDTH] = 0x87CEEB;
+			e++;
+		}
+		while(c <= r.rayHight && j <= HEIGHT)
 		{
 			//printf("0");
-			data[(int )i + (int )j * WIDTH] = color;
-			j--;
+			if (j >= HEIGHT)
+				j = HEIGHT;
+			data[(int )i + (int )j * WIDTH] = mult_colors(color, opacity);
+			j++;
 			c++;
 		}
 		//printf("\n");
-		i++;
-	}
+	// 	i++;
+	// }
+}
+
+void DDA(int X0, int Y0, int X1, int Y1) 
+{ 
+    // calculate dx & dy 
+    int dx = X1 - X0; 
+    int dy = Y1 - Y0; 
+
+    // calculate steps required for generating pixels 
+    int steps = abs(dx) > abs(dy) ? abs(dx) : abs(dy); 
+  
+    // calculate increment in x & y for each steps 
+    float Xinc = dx / (float) steps; 
+    float Yinc = dy / (float) steps; 
+  
+    // Put pixel for each step 
+    float X = X0; 
+    float Y = Y0; 
+    for (int i = 0; i <= steps; i++) 
+    { 
+		if(Y < 0 || Y > HEIGHT || X < 0 || X > WIDTH)
+			break;
+        data[(int )X + (int )Y * WIDTH] = 0xfa2c34;  // put pixel at (X,Y) 
+        X += Xinc;
+		Y += Yinc;           // increment in x at each step 
+    }
 }
 
 void	render3d(int i)
@@ -245,8 +324,12 @@ void	render3d(int i)
 	float projectDistance;
 
 	projectDistance = (WIDTH / 2) / tan(fov / 2);
+	r.cast.distance = cos(p.rotationAngle - r.rays[i]) * r.cast.distance;
 	r.rayHight = (projectDistance / r.cast.distance) * 32;
-	rectangle(i, 2, 0x348af2);
+	//printf("%f | %f \n", projectDistance, fov);
+	rectangle(i, 2, 0xFFFFFF);
+	//DDA(i, HEIGHT - HEIGHT / 2 - r.rayHight / 2, i, r.rayHight);
+	//printf("%f\n", r.rayHight);
 }
 
 void    drawRays(void)
@@ -256,13 +339,13 @@ void    drawRays(void)
 	unsigned int color;
 
 	i = 0;
-	while(i < Num_rays)
+	while(i <= Num_rays)
 	{
 		color = 0xfa2c34;
 		cast(r.rays[i]);
 		//drawLine(r.rays[i], color, 1);
 		render3d(i);
-		i+=1;
+		i++;
 	}
 }
 
@@ -485,6 +568,8 @@ void	chosePoints()
 
 	a = sqrtf(powf(p.x - r.cast.verticalx, 2) + powf(p.y - r.cast.verticaly, 2));
 	b = sqrtf(powf(p.x - r.cast.horizontalx, 2) + powf(p.y - r.cast.horizontaly, 2));
+	r.maxDistance = sqrtf(powf(0 - height, 2) + powf(0 - width, 2));
+	//printf("||%f||\n", r.maxDistance);
 	if (a <= b)
 	{
 		r.cast.wallHitx = r.cast.verticalx;
@@ -535,12 +620,12 @@ void	blackscreen(void)
 
 	x = 0;
 	y = 0;
-	while(x < WIDTH)
+	while(x <= WIDTH)
 	{
 		y = 0;
-		while(y < HEIGHT)
+		while(y <= HEIGHT)
 		{
-			data[(int )x + (int )y * WIDTH] = 0x000000;
+			data[(int )x + (int )y * WIDTH] = 0xa0522d;
 			y++;
 		}
 		x++;
@@ -595,7 +680,7 @@ int main()
 	mlx_ptr = mlx_init();
 	win_ptr = mlx_new_window(mlx_ptr, HEIGHT, WIDTH, "mlx 42");
 
-	//init field of Vu
+	//init field of View
 	fov = 60 * (Pi / 180);
 	//init number of rays
 	Rays_width = 1;
@@ -608,7 +693,7 @@ int main()
 	p.turnDirection = 0;
 	p.walkDirection = 0;
 	p.rotationAngle = Pi / 2;
-	p.moveSpeed = 3;
+	p.moveSpeed = 1.5;
 	p.rotationSpeed = 3 * Pi / 180;
 	img = mlx_new_image(mlx_ptr, WIDTH, HEIGHT);
 	data = (int*)mlx_get_data_addr(img, &a, &b, &c);
