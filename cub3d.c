@@ -6,10 +6,15 @@
 #include <math.h>
 #include <time.h>
 #define Pi 3.14
-#define WIDTH 640
-#define HEIGHT 640
+#define WIDTH 1000
+#define HEIGHT 1000
 #define MAXINT 2147483647
+#define TILESIZE 64
 void    cast(float ray);
+
+int		rayFacingDown(float angle);
+int		rayFacingLeft(float angle);
+int rayFacingLeft(float angle);
 // char		**ft_split(char const *s, char c);
 // int         ft_atoi(char *s);
 void *img;
@@ -36,8 +41,22 @@ int width;
 void *mlx_ptr;
 void *win_ptr;
 
-// rays
+//indices for walls
+int		tab[3];
 
+// rays
+typedef struct s_text
+{
+	unsigned int	*txtr1;
+	unsigned int	*txtr2;
+	unsigned int	*txtr3;
+	unsigned int 	*txtr4;
+	unsigned int 	*sprite;
+	int				txt_x;
+	int				txt_y;
+}text;
+
+text t;
 typedef struct s_castRay{
 	float horizontalx;
 	float horizontaly;
@@ -63,6 +82,13 @@ Rays r;
 char **lines;
 
 float rayAngle;
+typedef struct s_sprite
+{
+	int x;
+	int y;
+}sprite;
+
+sprite s;
 
 typedef struct s_player{
 		float x;
@@ -125,8 +151,8 @@ void    put_square(int x, int y, unsigned int color)
 	int y_init;
 	int savey;
 
-	x_last = x + 32;
-	y_last = y + 32;
+	x_last = x + TILESIZE;
+	y_last = y + TILESIZE;
 	y_init = y;
 	while(x < x_last)
 	{
@@ -219,40 +245,69 @@ void	rectangle(int e, int L, unsigned color)
 	int j;
 	int c;
 	int i_end;
+	int save_x;
 
+	save_x = e;
 	i = e;
 	c = 0;
 	e = 0;
-	//printf("|%f|", r.rayHight);
 		j = HEIGHT / 2 - r.rayHight / 2;
+		c = j;
 		while(e < j)
 		{
 			data[(int)i + (int)e *WIDTH] = 0x77b5fe;
 			e++;
 		}
 		if(j < 0)
-			j = 0;
-		while(c <= r.rayHight && j < HEIGHT)
 		{
-			if(j > HEIGHT)
-				j = HEIGHT;
-			//printf("0");
-			data[(int )i + (int )j * WIDTH] = color;
-			j++;
-			c++;
+			j = 0;
 		}
-		//printf("\n");
-		i++;
+		while(j - c <= r.rayHight && j < HEIGHT)
+		{
+			t.txt_y = (int)((j - c) * TILESIZE) / r.rayHight;
+			if(tab[0] == 0 && tab[2] == 1)
+				data[(int )i + (int )j * WIDTH] = t.txtr1[t.txt_x + TILESIZE * t.txt_y];
+			else if(tab[0] == 0 && tab[2] == 0)
+				data[(int )i + (int )j * WIDTH] = t.txtr2[t.txt_x + TILESIZE * t.txt_y];
+			else if (tab[0] == 1 && tab[1] == 1)
+				data[(int )i + (int )j * WIDTH] = t.txtr4[t.txt_x + TILESIZE * t.txt_y];
+			else if (tab[0] == 1 && tab[1] == 0)
+				data[(int )i + (int )j * WIDTH] = t.txtr3[t.txt_x + TILESIZE * t.txt_y];
+			j++;
+		}
 }
 
 void	render3d(int i)
 {
 	float projectDistance;
+	unsigned int	color;
 
+	if(r.cast.distance < 0)
+	{
+		tab[0] = 0;
+		r.cast.distance *= (-1);
+	}
+	else
+	{
+		tab[0] = 1;
+		color = 0xFFFFFF;
+	}
+	if(rayFacingLeft(normalize(r.rays[i])))
+		tab[1] = 1;
+	else
+		tab[1] = 0;
+	if(rayFacingDown(normalize(r.rays[i])))
+		tab[2] = 1;
+	else
+		tab[2] = 0;	
+	if(tab[0] == 0)
+		t.txt_x = (int)r.cast.wallHitx % TILESIZE;
+	else
+		t.txt_x = (int)r.cast.wallHity % TILESIZE;
 	projectDistance = (WIDTH / 2) / tan(fov / 2);
 	r.cast.distance = cos(p.rotationAngle - r.rays[i]) * r.cast.distance;
-	r.rayHight = (projectDistance / r.cast.distance) * 32;
-	rectangle(i, 2, 0xFFFFFF);
+	r.rayHight = (projectDistance / r.cast.distance) * TILESIZE;
+	rectangle(i, 2, color);
 }
 
 void    drawRays(void)
@@ -299,13 +354,18 @@ void    render(int height, int width, char **lines, int indice)
 			if(lines[a][b] == 'N' && indice == 0)
 			{
 				//printf("loool");
-				p.x = x;
-				p.y = y;
+				p.x = x + TILESIZE / 2;
+				p.y = y + TILESIZE / 2;
 				//mlx_pixel_put(mlx_ptr, win_ptr, p.x, p.y, 0x000000);
 				//data[(int )p.x + (int )p.y * WIDTH] = 0x000000;
 				//Line();
 				//drawLine(p.rotationAngle, 0x000000);
 				//printf("|%f|", p.rotationAngle + fov / 2);
+			}
+			if(lines[a][b] == '2' && indice == 0)
+			{
+				s.x = x + TILESIZE / 2;
+				s.y = y + TILESIZE / 2;
 			}
 			// else if(indice > 0)
 			// {
@@ -315,10 +375,10 @@ void    render(int height, int width, char **lines, int indice)
 			// 	drawLine(p.rotationAngle, 0x000000);
 			// 	//drawLine();
 			// }
-			x+=32;
+			x+=TILESIZE;
 			b++;
 		}
-		y+=32;
+		y+=TILESIZE;
 		a++;
 	}
 	if(indice > 0)
@@ -355,8 +415,8 @@ int checknextstep(void)
 
 	if (p.walk_for == 1)
 	{
-		b = (int )(p.x + cos(p.rotationAngle) * p.moveSpeed) / 32;
-		a = (int )(p.y + sin(p.rotationAngle) * p.moveSpeed) / 32;;
+		b = (int )(p.x + cos(p.rotationAngle) * p.moveSpeed) / TILESIZE;
+		a = (int )(p.y + sin(p.rotationAngle) * p.moveSpeed) / TILESIZE;;
 		if(lines[a][b] == '0' || lines[a][b] == 'N')
 			return(1);
 		else
@@ -364,8 +424,8 @@ int checknextstep(void)
 	}
 	if (p.walk_back == 1)
 	{
-		b = (int )(p.x - cos(p.rotationAngle) * p.moveSpeed) / 32;
-		a = (int )(p.y - sin(p.rotationAngle) * p.moveSpeed) / 32;
+		b = (int )(p.x - cos(p.rotationAngle) * p.moveSpeed) / TILESIZE;
+		a = (int )(p.y - sin(p.rotationAngle) * p.moveSpeed) / TILESIZE;
 		if(lines[a][b] == '0' || lines[a][b] == 'N')
 			return(1);
 		else
@@ -401,10 +461,10 @@ void    player_update(void)
 
 int		rayFacingDown(float angle)
 {
-	if (angle > 0 && angle <= Pi)
-		return(1);
-	// if (sin(angle) < 0)
+	// if (angle > 0 && angle <= Pi)
 	// 	return(1);
+	if (sin(angle) > 0)
+		return(1);
 	 return(0);
 }
 
@@ -426,27 +486,17 @@ void	horizontalintersect(float rayAngle)
 	float angle;
 
 	angle = normalize(rayAngle);
-	//printf("angle is%f\n", angle);
-	//angle = (5 * Pi) / 4;
-	ystep = 32 * (rayFacingDown(angle) ? 1 : -1);
-	//printf("|%ld|",  ystep);
+	ystep = TILESIZE * (rayFacingDown(angle) ? 1 : -1);
 	xstep = tan(angle) ? ystep / tan(angle) : 0;
-	//xstep *= rayFacingLeft(angle) ? -1 : 1;
-	ay = (floor(p.y / 32) * 32) + (rayFacingDown(angle) ? 32 : 0);
-	//printf("|%d| |%d|\n", rayFacingLeft(angle), rayFacingDown(angle));
-	//printf("%f", ay);
+	ay = (floor(p.y / TILESIZE) * TILESIZE) + (rayFacingDown(angle) ? TILESIZE : 0);
 	ax = p.x + ((ay - p.y) / tan(angle));
 	r.cast.distance = 0;
-	//printf("first|%f|%f|\n", ax, ay);
 	if(!rayFacingDown(angle))
 		ay--;
 	while(ay >= 0 && ax >= 0 && ax < width && ay < height)
 	{
-		// printf("|%f|%f|\n", ax, ay);
-		// printf("|%c|\n", lines[(int )(ay) / 32][(int )(ax) / 32]);
-		if(lines[(int )(ay) / 32][(int )(ax) / 32] == '1')
+		if(lines[(int )(ay) / TILESIZE][(int )(ax) / TILESIZE] == '1')
 		{
-			//printf("inter|%f|%f|\n", r.cast.wallHitx, r.cast.wallHity);
 			r.cast.horizontalx = ax;
 			r.cast.horizontaly = ay + (!rayFacingDown(angle) ? 1 : 0);
 			break;
@@ -465,17 +515,16 @@ void 	verticalintersect(float rayAngle)
 	float angle;
 
 	angle = normalize(rayAngle);
-	xstep = 32 * (rayFacingLeft(angle) ? -1 : 1);
+	xstep = TILESIZE * (rayFacingLeft(angle) ? -1 : 1);
 	ystep = xstep * (tan(angle));
-	ax = (floor(p.x / 32) * 32) + (!rayFacingLeft(angle) ? 32 : 0);
+	ax = (floor(p.x / TILESIZE) * TILESIZE) + (!rayFacingLeft(angle) ? TILESIZE : 0);
 	ay = p.y - (tan(angle) * (p.x - ax));
 	if(rayFacingLeft(angle))
 		ax--;
 	while(ay >= 0 && ax >= 0 && ax < width && ay < height)
 	{
-		if(lines[(int )(ay) / 32][(int )(ax) / 32] == '1')
+		if(lines[(int )(ay) / TILESIZE][(int )(ax) / TILESIZE] == '1')
 		{
-			//printf("inter|%f|%f|\n", r.cast.wallHitx, r.cast.wallHity);
 			r.cast.verticalx = ax + (rayFacingLeft(angle) ? 1 : 0);
 			r.cast.verticaly = ay;
 			break;
@@ -501,7 +550,7 @@ void	chosePoints()
 	{
 		r.cast.wallHitx = r.cast.horizontalx;
 		r.cast.wallHity = r.cast.horizontaly;
-		r.cast.distance = b;
+		r.cast.distance = b * (-1);
 	}
 }
 void	cast(float rayAngle)
@@ -558,29 +607,50 @@ int update()
 	//clock_t b, e;
 	mlx_hook(win_ptr , 2 , 0 ,  keypress, 0);
 	mlx_hook(win_ptr, 3 , 0 ,  keyreleased,  0);
-	//b = clock();
 	player_update();
-	//e = clock();
-	//printf("time taken by player_update(): %lf\n", (double)(e - b) / CLOCKS_PER_SEC);
-	//b = clock();
 	castAllRays();
-	//e = clock();
-	//printf("time taken by castAllRays(): %lf\n", (double)(e - b) / CLOCKS_PER_SEC);
-	//if (i % 1000 == 0)
 	mlx_clear_window(mlx_ptr, win_ptr);
-	//b = clock();
 	blackscreen();
 	render(height, width, lines, 1);
-	//e = clock();
-	//printf("time taken by render(): %lf\n", (double)(e - b) / CLOCKS_PER_SEC);
-	//data[HEIGHT / 2 + WIDTH / 2 * WIDTH] = 0xFFFFFF;
 	if (!i || i++ == 127)
 		mlx_put_image_to_window(mlx_ptr, win_ptr, img, 0 , 0);
 	//mlx_destroy_image(mlx_ptr, img);
 	return (0);
 }
 
+int		ft_xpm(unsigned int **info, char	*file)
+{
+	int		fd;
+	void	*img;
+	int		tab[5];
 
+	fd = open(file, O_RDONLY);
+	close(fd);
+	img = mlx_xpm_file_to_image(mlx_ptr, file, &tab[0], &tab[1]);
+	*info = (unsigned int *)mlx_get_data_addr(img, &tab[2], &tab[3], &tab[4]);
+	free(img);
+	return(0);
+}
+
+void	ft_textures(void)
+{
+	char			*file1;
+	char			*file2;
+	char			*file3;
+	char			*file4;
+	char			*file5;
+
+	file1 = "utils/pictures/stone.xpm";
+	file2 = "utils/pictures/deco.xpm";
+	file3 = "utils/pictures/brick.xpm";
+	file4 = "utils/pictures/glass.xpm";
+	file5 = "utils/pictures/barrel.xpm";
+	ft_xpm(&t.txtr1, file1);
+	ft_xpm(&t.txtr2, file2);
+	ft_xpm(&t.txtr3, file3);
+	ft_xpm(&t.txtr4, file4);
+	ft_xpm(&t.sprite, file5);
+}
 int main()
 {
 	int fd;
@@ -593,16 +663,16 @@ int main()
 	b = 0;
 	while(lines[a])
 		a++;
-	height = 32 * a;
+	height = TILESIZE * a;
 	while(lines[0][b])
 		b++;
-	width = 32 * b;
+	width = TILESIZE * b;
 
 	mlx_ptr = mlx_init();
 	win_ptr = mlx_new_window(mlx_ptr, HEIGHT, WIDTH, "mlx 42");
-
 	//init field of Vu
 	fov = 60 * (Pi / 180);
+	ft_textures();
 	//init number of rays
 	Rays_width = 1;
 	Num_rays = WIDTH / Rays_width;
@@ -614,14 +684,14 @@ int main()
 	p.turnDirection = 0;
 	p.walkDirection = 0;
 	p.rotationAngle = Pi / 2;
-	p.moveSpeed = 3;
-	p.rotationSpeed = 3 * Pi / 180;
+	p.moveSpeed = 4;
+	p.rotationSpeed = 1.5 * Pi / 180;
 	img = mlx_new_image(mlx_ptr, WIDTH, HEIGHT);
 	data = (int*)mlx_get_data_addr(img, &a, &b, &c);
 	render(height, width, lines, 0);
 //	mlx_hook(win_ptr , 2 , 0 ,  keypress, 0);
 //	mlx_hook(win_ptr, 3 , 0 ,  keyreleased,  0);
 	mlx_loop_hook(mlx_ptr, update, 0);
-	mlx_loop(mlx_ptr);
+ 	mlx_loop(mlx_ptr);
 	return (0);
 }
