@@ -1,13 +1,5 @@
-#include "mlx.h"
-#include "utils/get_next_line.h"
-#include <fcntl.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <math.h>
-#include <time.h>
+#include "cub3d.h"
 #define Pi 3.14
-#define WIDTH 1000
-#define HEIGHT 1000
 #define MAXINT 2147483647
 #define TILESIZE 64
 void    cast(float ray);
@@ -15,15 +7,16 @@ void    cast(float ray);
 int		rayFacingDown(float angle);
 int		rayFacingLeft(float angle);
 int rayFacingLeft(float angle);
-// char		**ft_split(char const *s, char c);
-// int         ft_atoi(char *s);
+char		**ft_split(char const *s, char c);
+int         ft_atoi(char *s);
+
 void *img;
 int a,b,c;
 int *data;
 
 //Field of Vu
 float fov;
-
+int v;
 //
 //Mini Map
 float minimap;
@@ -70,6 +63,8 @@ typedef struct s_castRay{
 }castRay;
 
 //castRay cast;
+
+//Screen resolution
 typedef struct s_Rays{
 	float *rays;
 	float rayHight;
@@ -77,6 +72,7 @@ typedef struct s_Rays{
 }Rays;
 
 Rays r;
+Screen sc;
 
 // stock map into lines
 char **lines;
@@ -103,6 +99,9 @@ typedef struct s_player{
 		short walk_back;
 		short cam_left;
 		short cam_right;
+		int		look;
+		short	look_up;
+		short	look_down;
 }player;
 
 player p;
@@ -120,6 +119,7 @@ float	normalize(float rayAngle)
 
 int keypress(int key)
 {
+	printf("%d\n", key);
 	if (key == 13)
 		p.walk_for = 1;
 	if (key == 1)
@@ -128,6 +128,10 @@ int keypress(int key)
 		p.cam_left = 1;
 	if (key == 124)
 		p.cam_right = 1;
+	if (key == 126)
+		p.look_up = 1;
+	else if (key == 125)
+		p.look_down = 1;
 	return (0);
 }
 
@@ -141,6 +145,10 @@ int keyreleased(int key)
 		p.cam_left = -1;
 	if (key == 124)
 		p.cam_right = -1;
+	if (key == 126)
+		p.look_up = -1;
+	else if(key == 125)
+		p.look_down = -1;
 	return(0);
 }
 
@@ -162,32 +170,17 @@ void    put_square(int x, int y, unsigned int color)
 				if  (color == 1)
 				{
 					//mlx_pixel_put(mlx_ptr, win_ptr, x, y, 0x5a5a97);
-					data[x + y * WIDTH] = 0xFFFFFF;
+					data[x + y * sc.w] = 0xFFFFFF;
 				}
 				else if (color == 0)
 				{
 					//mlx_pixel_put(mlx_ptr, win_ptr, x, y, 0xbbcedd);
-					data[x + y * WIDTH] = 0xbbcedd;
+					data[x + y * sc.w] = 0xbbcedd;
 				}
 			y++;
 		}
 		x++;
 	}
-}
-char    **ft_cube3d(int fd)
-{
-	int i;
-	int j;
-	int c;
-
-	i = 0;
-	j = 0;
-	lines = malloc(sizeof(char ** ) * 100);
-	while(get_next_line(fd, &lines[j]))
-		j++;
-	lines[++j] = NULL;
-	j = 0;
-	return(lines);
 }
 
 void    drawLine(float angle, unsigned int color, int indice)
@@ -204,7 +197,6 @@ void    drawLine(float angle, unsigned int color, int indice)
 	float xincrement;
 	float yincrement;
 	int		steps;
-
 
 	// clock_t start = clock();
 	x = p.x;
@@ -228,7 +220,7 @@ void    drawLine(float angle, unsigned int color, int indice)
 	i = 0;
 	while(i < steps)
 	{
-		data[(int )x + (int )y * WIDTH] = color;
+		data[(int )x + (int )y * sc.w] = color;
 		// if(floor(x) == floor(r.cast.wallHitx) && floor(y) == floor(r.cast.wallHity))
 		// 	break;
 		x += xincrement;
@@ -251,28 +243,28 @@ void	rectangle(int e, int L, unsigned color)
 	i = e;
 	c = 0;
 	e = 0;
-		j = HEIGHT / 2 - r.rayHight / 2;
+	j = sc.h / 2 - r.rayHight / 2 + p.look;
 		c = j;
 		while(e < j)
 		{
-			data[(int)i + (int)e *WIDTH] = 0x77b5fe;
+			data[(int)i + (int)e *sc.w] = 0x77b5fe;
 			e++;
 		}
 		if(j < 0)
 		{
 			j = 0;
 		}
-		while(j - c <= r.rayHight && j < HEIGHT)
+		while(j - c <= r.rayHight && j < sc.h)
 		{
 			t.txt_y = (int)((j - c) * TILESIZE) / r.rayHight;
 			if(tab[0] == 0 && tab[2] == 1)
-				data[(int )i + (int )j * WIDTH] = t.txtr1[t.txt_x + TILESIZE * t.txt_y];
+				data[(int )i + (int )j * sc.w] = t.txtr1[t.txt_x + TILESIZE * t.txt_y];
 			else if(tab[0] == 0 && tab[2] == 0)
-				data[(int )i + (int )j * WIDTH] = t.txtr2[t.txt_x + TILESIZE * t.txt_y];
+				data[(int )i + (int )j * sc.w] = t.txtr2[t.txt_x + TILESIZE * t.txt_y];
 			else if (tab[0] == 1 && tab[1] == 1)
-				data[(int )i + (int )j * WIDTH] = t.txtr4[t.txt_x + TILESIZE * t.txt_y];
+				data[(int )i + (int )j * sc.w] = t.txtr4[t.txt_x + TILESIZE * t.txt_y];
 			else if (tab[0] == 1 && tab[1] == 0)
-				data[(int )i + (int )j * WIDTH] = t.txtr3[t.txt_x + TILESIZE * t.txt_y];
+				data[(int )i + (int )j * sc.w] = t.txtr3[t.txt_x + TILESIZE * t.txt_y];
 			j++;
 		}
 }
@@ -304,7 +296,7 @@ void	render3d(int i)
 		t.txt_x = (int)r.cast.wallHitx % TILESIZE;
 	else
 		t.txt_x = (int)r.cast.wallHity % TILESIZE;
-	projectDistance = (WIDTH / 2) / tan(fov / 2);
+	projectDistance = (sc.w / 2) / tan(fov / 2);
 	r.cast.distance = cos(p.rotationAngle - r.rays[i]) * r.cast.distance;
 	r.rayHight = (projectDistance / r.cast.distance) * TILESIZE;
 	rectangle(i, 2, color);
@@ -357,7 +349,7 @@ void    render(int height, int width, char **lines, int indice)
 				p.x = x + TILESIZE / 2;
 				p.y = y + TILESIZE / 2;
 				//mlx_pixel_put(mlx_ptr, win_ptr, p.x, p.y, 0x000000);
-				//data[(int )p.x + (int )p.y * WIDTH] = 0x000000;
+				//data[(int )p.x + (int )p.y * sc.w] = 0x000000;
 				//Line();
 				//drawLine(p.rotationAngle, 0x000000);
 				//printf("|%f|", p.rotationAngle + fov / 2);
@@ -369,7 +361,7 @@ void    render(int height, int width, char **lines, int indice)
 			}
 			// else if(indice > 0)
 			// {
-			// 	data[(int )p.x + (int )p.y * WIDTH] = 0x000000;
+			// 	data[(int )p.x + (int )p.y * sc.w] = 0x000000;
 			// 	//Line;
 			// 	drawRays();
 			// 	drawLine(p.rotationAngle, 0x000000);
@@ -383,46 +375,54 @@ void    render(int height, int width, char **lines, int indice)
 	}
 	if(indice > 0)
 	{
-		data[(int )p.x + (int )p.y * WIDTH] = 0x000000;
+		data[(int )p.x + (int )p.y * sc.w] = 0x000000;
 		//Line;
 		drawRays();
 		//drawLine(p.rotationAngle, 0x000000);
 	}
 }
 
-void    printmatrice(void)
+void    printmatrice(char **tab)
 {
 	int a;
 	int b;
 	
 	a = 0;
-	while (lines[a])
+	while (tab[a])
 	{
 		b = 0;
-		while(lines[a][b])
+		while(tab[a][b])
 		{
-			printf("%c|", lines[a][b]);
+			printf("%c|", tab[a][b]);
 			b++;
 		}
 		printf("\n");
 		a++;
 	}
 }
-int checknextstep(void)
+int checknextstep(int i)
 {
 	int a;
 	int b;
 
-	if (p.walk_for == 1)
+	if (i == 1)
 	{
-		b = (int )(p.x + cos(p.rotationAngle) * p.moveSpeed) / TILESIZE;
-		a = (int )(p.y + sin(p.rotationAngle) * p.moveSpeed) / TILESIZE;;
+		if (p.rotationAngle < 1.58 && p.rotationAngle > 1.56)
+		{
+			b = (int )((p.x + cos(p.rotationAngle) * p.moveSpeed) / TILESIZE);
+			a = (int )((p.y + 1 + sin(p.rotationAngle) * p.moveSpeed) / TILESIZE);
+		}
+		else 
+		{
+		b = (int )((p.x + cos(p.rotationAngle) * p.moveSpeed) / TILESIZE);
+		a = (int )((p.y + sin(p.rotationAngle) * p.moveSpeed) / TILESIZE);
+		}
 		if(lines[a][b] == '0' || lines[a][b] == 'N')
 			return(1);
 		else
 			return (0);;
 	}
-	if (p.walk_back == 1)
+	else if (i == 0)
 	{
 		b = (int )(p.x - cos(p.rotationAngle) * p.moveSpeed) / TILESIZE;
 		a = (int )(p.y - sin(p.rotationAngle) * p.moveSpeed) / TILESIZE;
@@ -446,16 +446,24 @@ void    player_update(void)
 	}
 	if (p.walk_for == 1)
 	{
-		if (checknextstep())
+		if (checknextstep(1))
 		{
 			p.x += cos(p.rotationAngle) * p.moveSpeed;
 			p.y += sin(p.rotationAngle) * p.moveSpeed;
 		}
 	}
-	if (p.walk_back == 1 && checknextstep())
+	if (p.walk_back == 1 && checknextstep(0))
 	{
 		p.x -= cos(p.rotationAngle) * p.moveSpeed;
 		p.y -= sin(p.rotationAngle) * p.moveSpeed;
+	}
+	if (p.look_up == 1)
+	{
+		p.look+=10;
+	}
+	if (p.look_down == 1)
+	{
+		p.look-=10;
 	}
 }
 
@@ -590,12 +598,12 @@ void	blackscreen(void)
 
 	x = 0;
 	y = 0;
-	while(x < WIDTH)
+	while(x < sc.w)
 	{
 		y = 0;
-		while(y < HEIGHT)
+		while(y < sc.h)
 		{
-			data[(int )x + (int )y * WIDTH] = 0x000000;
+			data[(int )x + (int )y * sc.w] = 0x000000;
 			y++;
 		}
 		x++;
@@ -624,33 +632,53 @@ int		ft_xpm(unsigned int **info, char	*file)
 	void	*img;
 	int		tab[5];
 
-	fd = open(file, O_RDONLY);
+	if ((fd = open(file, O_RDONLY)) < 0)
+	{
+		printf("Error\ninvalide path");
+		return(0);
+	}
 	close(fd);
 	img = mlx_xpm_file_to_image(mlx_ptr, file, &tab[0], &tab[1]);
 	*info = (unsigned int *)mlx_get_data_addr(img, &tab[2], &tab[3], &tab[4]);
 	free(img);
-	return(0);
+	return(1);
 }
 
-void	ft_textures(void)
+void	rendersprite(void)
 {
-	char			*file1;
-	char			*file2;
-	char			*file3;
-	char			*file4;
-	char			*file5;
+	int i;
+	int distx;
+	int disty;
+	int angle[Num_rays];
 
-	file1 = "utils/pictures/stone.xpm";
-	file2 = "utils/pictures/deco.xpm";
-	file3 = "utils/pictures/brick.xpm";
-	file4 = "utils/pictures/glass.xpm";
-	file5 = "utils/pictures/barrel.xpm";
-	ft_xpm(&t.txtr1, file1);
-	ft_xpm(&t.txtr2, file2);
-	ft_xpm(&t.txtr3, file3);
-	ft_xpm(&t.txtr4, file4);
-	ft_xpm(&t.sprite, file5);
+	i = 0;
+	while(i < Num_rays)
+	{
+		distx = s.x - p.x;
+		disty = s.y - p.y;
+		//printf("%d|%d\n", s.x, s.y);
+		angle[i] = atan(disty);
+		angle[i] = normalize(angle[i]);
+	}
 }
+int		ft_textures(void)
+{
+	char			*file5;
+	file5 = "utils/pictures/barrel.xpm";
+	if(!ft_xpm(&t.txtr1, eapath))
+		return(0);
+	if(!ft_xpm(&t.txtr2, sopath))
+		return(0);
+	if(!ft_xpm(&t.txtr3, nopath))
+		return(0);
+	if(!ft_xpm(&t.txtr4, wepath))
+		return(0);
+	if(!ft_xpm(&t.sprite, file5))
+		return(0);
+	return(1);
+}
+
+
 int main()
 {
 	int fd;
@@ -658,7 +686,9 @@ int main()
 	int b;
 
 	fd = open("map.txt", O_RDWR);
-	lines = ft_cube3d(fd);
+	if(!readfile(fd))
+		return (0);
+	
 	a = 0;
 	b = 0;
 	while(lines[a])
@@ -669,13 +699,14 @@ int main()
 	width = TILESIZE * b;
 
 	mlx_ptr = mlx_init();
-	win_ptr = mlx_new_window(mlx_ptr, HEIGHT, WIDTH, "mlx 42");
+	if((!ft_textures()))
+		return (0);
+	win_ptr = mlx_new_window(mlx_ptr, sc.h, sc.w, "mlx 42");
 	//init field of Vu
 	fov = 60 * (Pi / 180);
-	ft_textures();
 	//init number of rays
 	Rays_width = 1;
-	Num_rays = WIDTH / Rays_width;
+	Num_rays = sc.w / Rays_width;
 	r.rays = malloc(sizeof(float) * Num_rays);
 	//init params of player
 	p.x = 0;
@@ -686,11 +717,14 @@ int main()
 	p.rotationAngle = Pi / 2;
 	p.moveSpeed = 4;
 	p.rotationSpeed = 1.5 * Pi / 180;
-	img = mlx_new_image(mlx_ptr, WIDTH, HEIGHT);
+	p.look = 0;
+	img = mlx_new_image(mlx_ptr, sc.w, sc.h);
 	data = (int*)mlx_get_data_addr(img, &a, &b, &c);
 	render(height, width, lines, 0);
+	//rendersprite();
 //	mlx_hook(win_ptr , 2 , 0 ,  keypress, 0);
 //	mlx_hook(win_ptr, 3 , 0 ,  keyreleased,  0);
+//	mlx_key_hook()
 	mlx_loop_hook(mlx_ptr, update, 0);
  	mlx_loop(mlx_ptr);
 	return (0);
